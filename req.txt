@@ -1,0 +1,7 @@
+fastapi
+sqlalchemy
+authlib
+docker
+python-dotenv
+python-jose
+httpx
