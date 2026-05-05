@@ -97,4 +97,4 @@ Labs are modeled in the database and tied to a specific Docker image.
 4. If the page requires data fetching, add the corresponding API call in the component using the `apiClient` from `src/api.tsx`.
 
 ## 📜 License
-MIT License
+MIT License# CyberLab
