@@ -15,8 +15,9 @@ const LabWorkspace: React.FC = () => {
   const [expiresIn, setExpiresIn] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [containerStatus, setContainerStatus] = useState<string>('checking');
-  const [tabOpened, setTabOpened] = useState(false);
+  const [submittedFlag, setSubmittedFlag] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<{ correct: boolean; message: string } | null>(null);
 
   useEffect(() => {
     const initWorkspace = async () => {
@@ -200,6 +201,38 @@ const LabWorkspace: React.FC = () => {
     }
   };
 
+  const handleSubmitFlag = async () => {
+    if (!submittedFlag.trim()) {
+      setSubmissionResult({ correct: false, message: 'Please enter a flag' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await apiClient.post('/flags/submit/lab', {
+        challenge_id: labId,
+        flag: submittedFlag
+      });
+
+      setSubmissionResult(response.data);
+      if (response.data.correct) {
+        setSubmittedFlag('');
+        // Refresh user data or show completion status
+        setTimeout(() => {
+          navigate('/labs');
+        }, 3000);
+      }
+    } catch (err: any) {
+      console.error('Error submitting flag:', err);
+      setSubmissionResult({
+        correct: false,
+        message: err.response?.data?.message || 'Error submitting flag'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const credentials = getLabCredentials();
   const instructions = getLabInstructions();
 
@@ -368,6 +401,61 @@ const LabWorkspace: React.FC = () => {
         </div>
         </div>
       )}
+
+      {/* Flag Submission Card */}
+      <div className="bg-cyber-card backdrop-blur-md border border-cyber-blue/20 rounded-lg p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Key className="w-6 h-6 text-cyber-blue" />
+          <h2 className="text-xl font-orbitron font-bold text-cyber-blue">Submit Flag</h2>
+        </div>
+        <p className="text-gray-400 mb-4">Complete the lab objectives and submit the flag to earn points!</p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-gray-400 text-sm mb-2">Flag</label>
+            <input
+              type="text"
+              value={submittedFlag}
+              onChange={(e) => setSubmittedFlag(e.target.value)}
+              placeholder="Enter the flag you found..."
+              className="w-full bg-cyber-dark/50 border border-cyber-blue/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyber-blue focus:outline-none"
+              disabled={submitting}
+            />
+          </div>
+
+          <button
+            onClick={handleSubmitFlag}
+            disabled={submitting || !submittedFlag.trim()}
+            className="w-full px-6 py-3 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-lg font-orbitron font-bold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Submitting...
+              </div>
+            ) : (
+              'Submit Flag'
+            )}
+          </button>
+
+          {submissionResult && (
+            <div className={`p-4 rounded-lg border ${
+              submissionResult.correct
+                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                : 'bg-red-500/10 border-red-500/30 text-red-400'
+            }`}>
+              <div className="flex items-center gap-2">
+                {submissionResult.correct ? (
+                  <Unlock className="w-5 h-5" />
+                ) : (
+                  <Lock className="w-5 h-5" />
+                )}
+                <span className="font-cyber">{submissionResult.message}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Lab Details Card */}
       {labDetails && (

@@ -16,6 +16,8 @@ from backend.models.tournament_flag import TournamentFlag
 from backend.models.user import User
 from backend.models.lab import Lab
 from backend.models.lab import LabSession
+from backend.models.lab_flag import LabFlag
+from backend.schemas.lab import LabCreate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -56,30 +58,34 @@ def get_all_labs(
 
 @router.post("/labs/create")
 def create_lab(
-    lab_data: dict,
+    lab_data: LabCreate,
     current_user: dict = Depends(get_current_staff_user),
     db: Session = Depends(get_db)
 ):
     """Create a new lab"""
     try:
-        lab_id = lab_data.get('id') or str(uuid.uuid4())
+        lab_id = lab_data.id or str(uuid.uuid4())
 
         new_lab = Lab(
             id=lab_id,
-            title=lab_data.get('title'),
-            category=lab_data.get('category'),
-            difficulty=lab_data.get('difficulty'),
-            points=lab_data.get('points', 100),
-            description=lab_data.get('description', ''),
-            long_description=lab_data.get('long_description', lab_data.get('description', '')),
-            docker_image=lab_data.get('docker_image', 'vulnerables/web-dvwa:latest'),
-            docker_port=lab_data.get('docker_port', 80),
-            tags=lab_data.get('tags', []),
-            time=lab_data.get('time', '60 min'),
-            participants=0,
-            completed=False,
-            featured=lab_data.get('featured', False),
-            created_at=datetime.utcnow()
+            title=lab_data.title,
+            category=lab_data.category,
+            difficulty=lab_data.difficulty,
+            points=lab_data.points,
+            description=lab_data.description,
+            long_description=lab_data.long_description or lab_data.description,
+            docker_image=lab_data.docker_image,
+            docker_port=lab_data.docker_port,
+            tags=','.join(lab_data.tags) if lab_data.tags else '',
+            time=lab_data.time,
+            participants=lab_data.participants,
+            completed=lab_data.completed,
+            featured=lab_data.featured,
+            objectives=json.dumps(lab_data.objectives) if lab_data.objectives else None,
+            prerequisites=json.dumps(lab_data.prerequisites) if lab_data.prerequisites else None,
+            hints=json.dumps(lab_data.hints) if lab_data.hints else None,
+            tools=json.dumps(lab_data.tools) if lab_data.tools else None,
+            environment=lab_data.environment
         )
         db.add(new_lab)
         db.commit()
@@ -106,6 +112,46 @@ def delete_lab(
     db.commit()
 
     return {"message": "Lab deleted successfully"}
+
+@router.post("/labs/{lab_id}/flag")
+def add_lab_flag(
+    lab_id: str,
+    request: dict,
+    current_user: dict = Depends(get_current_staff_user),
+    db: Session = Depends(get_db)
+):
+    """Add or update a flag for a lab"""
+    flag_value = request.get("flag")
+    if not flag_value:
+        raise HTTPException(status_code=400, detail="Flag is required")
+
+    lab = db.query(Lab).filter(Lab.id == lab_id).first()
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+
+    # Check if flag already exists for this lab
+    existing_flag = db.query(LabFlag).filter(LabFlag.lab_id == lab_id).first()
+
+    if existing_flag:
+        # Update existing flag
+        existing_flag.flag = flag_value
+        existing_flag.flag_hash = hash_flag(flag_value)
+        db.commit()
+        return {"message": "Lab flag updated successfully"}
+    else:
+        # Create new flag
+        flag_record = LabFlag(
+            id=str(uuid.uuid4()),
+            lab_id=lab_id,
+            flag=flag_value,
+            flag_hash=hash_flag(flag_value),
+            is_active=True,
+            created_at=datetime.utcnow(),
+            created_by=current_user.get("sub")
+        )
+        db.add(flag_record)
+        db.commit()
+        return {"message": "Lab flag added successfully"}
 
 # ============ USERS ENDPOINTS ============
 

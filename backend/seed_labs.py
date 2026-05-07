@@ -15,8 +15,10 @@ def seed_labs():
     db = SessionLocal()
     
     try:
-        # Clear existing labs
-        
+        # Clear existing labs before seeding to avoid duplicate rows
+        db.query(Lab).delete()
+        db.commit()
+
         labs_data = [
             {
                 "id": str(uuid.uuid4())[:8],

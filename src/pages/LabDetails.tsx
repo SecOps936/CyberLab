@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
+import apiClient from '../api';
 import {
   ArrowLeft,
   Clock,
@@ -50,7 +50,7 @@ const LabDetails: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get(`http://localhost:8000/labs/${id}`);
+        const response = await apiClient.get(`/labs/${id}`);
         setLab(response.data);
       } catch (err: any) {
         console.error('Error fetching lab details:', err);
@@ -75,15 +75,33 @@ const LabDetails: React.FC = () => {
     }
   };
 
-  const handleStartLab = () => async () => {
+  const handleStartLab = async () => {
     if (!lab) return;
 
-    console.log('Starting lab here:', id);
-    const resp = await axios.put(`https://cyber.yit-agency.com/api/labs/start/${id}`, { userId: 1 });
+    try {
+      console.log('Starting lab:', id);
+      const response = await apiClient.put(`/labs/start/${id}`);
 
-    if (resp.status === 200) {
-      console.log('Lab started successfully');
-      window.open(resp.data.url, '_blank');
+      if (response.data) {
+        console.log('Lab started successfully:', response.data);
+
+        // Navigate to lab workspace with session data
+        navigate(`/lab/${id}/workspace`, {
+          state: {
+            labSession: {
+              labId: id,
+              labTitle: lab.title,
+              sessionId: response.data.session_id,
+              url: response.data.url,
+              expiresIn: response.data.expires_in
+            },
+            lab: lab
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error('Error starting lab:', err);
+      alert(err.response?.data?.detail || 'Failed to start lab');
     }
   };
 

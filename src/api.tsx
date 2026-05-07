@@ -61,7 +61,7 @@ export const getLab = async (id: string) => {
 };
 
 export const startLab = async (id: string) => {
-    return apiClient.post(`/labs/${id}/start`);
+    return apiClient.put(`/labs/start/${id}`);
 };
 
 export const stopLab = async (id: string) => {
